@@ -252,7 +252,8 @@ def perform_strip_operations(df, selected_column, strip_operation,
 
     return df
 
-def col_strip(df):
+def col_strip():
+    global df
     # Create a session state to store the operations
     if 'operations' not in st.session_state:
         st.session_state.operations = {}
@@ -275,7 +276,6 @@ def col_strip(df):
     # Display the expander sections for each operation
     for operation_key, operation_details in st.session_state.operations.items():
         with st.expander("Operation " + operation_key):
-        # with st.expander("Operation " + str(len(st.session_state.operations) + 1)):
             left_col, middle_col, right_col = st.columns(3)
 
             with left_col:
@@ -321,58 +321,13 @@ def col_strip(df):
                 df = perform_strip_operations(df, selected_column, strip_operation, 
                                               selected_transformation_types, specific_string_to_transform)
                 # Display the updated DataFrame
-                st.dataframe(df)
+                st.write(df)
+                # st.dataframe(df)
     return df       
     
-
-def col_strip1():
-    left_col, middle_col, right_col = st.columns(3)
-
-    with left_col:
-        column_names = df.columns.tolist()
-        # Select a column from the DataFrame
-        selected_column = st.selectbox("Select a column for strip operation", options= [None] + column_names, index = 0)
-
-    with middle_col:
-        # Select the strip operation
-        strip_operation = st.selectbox("Select a strip operation", [None, "left", "right", "full"], index = 0)
-
-    with right_col:
-        # Create a multiselect field with transformation types
-        transformation_types = ["Strip Alphabets", "Strip Numericals", "Strip Special Characters", "Strip Specific Character"]
-        selected_transformation_types = st.multiselect("Select transformation types", transformation_types)
-
-    # Perform strip operations based on the selected transformation types
-    for transformation_type in selected_transformation_types:
-        string_to_transform = None
-        
-        if transformation_type == "Strip Alphabets":
-            string_to_transform = '[a-zA-Z]'
-        elif transformation_type == "Strip Numericals":
-            string_to_transform = '[0-9]'
-        elif transformation_type == "Strip Special Characters":
-            string_to_transform = '[^\W\s_]'
-        elif transformation_type == "Strip Specific Character":
-            specific_character = st.text_input("Enter a specific character(separated by and) to strip")
-            # string_to_transform = specific_character
-            if specific_character:
-                characters_list = specific_character.strip().split('and')
-                characters_list = [character.strip() for character in characters_list]
-                string_to_transform = ''.join(characters_list)
-
-        if string_to_transform is not None:
-            # Perform the strip operation on the selected column
-            # if st.button("Apply Strip"):
-            if strip_operation == "left":
-                df[selected_column] = df[selected_column].str.lstrip(string_to_transform)
-            elif strip_operation == "right":
-                df[selected_column] = df[selected_column].str.rstrip(string_to_transform)
-            elif strip_operation == "full":
-                df[selected_column] = df[selected_column].str.strip(string_to_transform)  
-
-    # Display the updated DataFrame
-    st.dataframe(df)
-    
+def replace():
+    # df['Phone_Number'] = df['Phone_Number'].str.replace('[â-ZA-Z0-9]','') # except alphabets and numeric, everything else
+    df['Phone_Number'].apply(lambda x:x)
 
 # ---- Create Model ---
 with st.container():
@@ -442,7 +397,7 @@ with st.container():
             if user_choice == "Drop":
                 row_drop()
                 col_drop()
-                df = col_strip(df)
+                df = col_strip()
                 
 
 
