@@ -6,6 +6,9 @@ from io import StringIO
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
+
+df = None
 
 # Find more emojis here: https://www.webfx.com/tools/emoji-cheat-sheet/
 st.set_page_config(page_title="My Webpage", page_icon=":tada:", layout="wide")
@@ -36,7 +39,7 @@ img_lottie_animation = Image.open("images/yt_lottie_animation.png")
 # ---- HEADER SECTION ----
 with st.container():
     st.subheader("Hi, I am Priyab :wave:")
-    st.title("A Data Scientist From India")
+    # st.title("A Data Scientist From India")
     st.write(
         "I am passionate about finding ways to use Python to be more efficient and effective at work."
     )
@@ -65,6 +68,9 @@ with st.container():
 #         'Sorting hat',
 #         ("Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin"))
 #     st.write(f"You are in {chosen} house!")
+
+# multiselect
+# select_column = st.multiselect("Select columns to drop:",df.columns)
 # ---------------------------------------------
 
 # # ---- WHAT I DO ----
@@ -85,7 +91,7 @@ with st.container():
 #             If this sounds interesting to you, consider subscribing and turning on the notifications, so you don’t miss any content.
 #             """
 #         )
-#         st.write("[YouTube Channel >](https://youtube.com/c/CodingIsFun)")
+#         st.write("[YouTube Channel >](https://youtube.com/)")
 #     # with right_column:
 #     #     st_lottie(lottie_coding, height=300, key="coding")
 
@@ -98,15 +104,13 @@ with st.container():
 #     with image_column:
 #         st.image(img_lottie_animation)
 #     with text_column:
-#         st.subheader("Integrate Lottie Animations Inside Your Streamlit App")
+#         st.subheader("Integrate Animations Inside Your Streamlit App")
 #         st.write(
 #             """
-#             Learn how to use Lottie Files in Streamlit!
-#             Animations make our web app more engaging and fun, and Lottie Files are the easiest way to do it!
-#             In this tutorial, I'll show you exactly how to do it
+#             Learn how to use ...
 #             """
 #         )
-#         st.markdown("[Watch Video...](https://youtu.be/TXSOitGoINE)")
+#         st.markdown("[Watch Video...](https://youtu.be/)")
 # with st.container():
 #     image_column, text_column = st.columns((1, 2))
 #     with image_column:
@@ -142,6 +146,233 @@ with st.container():
 #         st.markdown(contact_form, unsafe_allow_html=True)
 #     with right_column:
 #         st.empty()
+def read_file(file_path):
+    global df
+    try:
+        # Check the file extension
+        file_name = file_path.name
+        file_extension = file_name.split(".")[-1]
+        if file_extension not in ["xlsx", "csv"]:
+            raise ValueError("Invalid file format! Please provide a file with .xlsx or .csv extension.")
+
+        # Read the file
+        if file_extension == "xlsx":
+            df = pd.read_excel(file_path)
+        else:
+            df = pd.read_csv(file_path)
+
+    except Exception as e:
+        error_message = f"Error while reading file: {str(e)}"
+        print(error_message)
+        df = None
+    
+def col_missing_info():
+    # missing data in columns
+    rows = st.columns(3)
+    rows[0].markdown("### Is there?")
+    rows[0].dataframe(df.isna().any())
+    rows[1].markdown("### Count")
+    rows[1].dataframe(df.isna().sum())
+    rows[2].markdown("### Percentages")
+    rows[2].dataframe(df.isna().sum()/len(df) * 100)
+
+def row_missing_info():
+    # missing data in row
+    # st.write("Missing values count in each row: ", df.isna().sum(axis=1).values)
+    st.write("Is there any row with at least one missing value: ", df.isnull().any(axis = 1).sum())
+    st.write("how many rows are there with only missing values: ",df.isnull().all(axis = 1).sum())
+    if df.isnull().all(axis = 1).sum() > 0:
+        row_selection = st.radio("Would you like to drop the rows?", ("Yes", "No"), index = 1)
+        if row_selection == "Yes":
+            df.dropna(how='all', inplace=True)
+
+def row_drop():
+    # Check for duplicate rows
+    duplicate_count = df.duplicated().sum()
+
+    # Check if there are any duplicate rows
+    if duplicate_count > 0:
+        # Drop duplicate rows
+        df.drop_duplicates(inplace=True)
+        if duplicate_count == 1:
+            st.write(duplicate_count, " duplicate row has been deleted.")
+        else:
+            st.write(duplicate_count, " duplicate rows have been deleted.")
+    # st.write("Dropping rows where the non null values are less than a threshold value")
+    # df_new.isnull().sum(axis=1).values
+    # df_new.notnull().sum(axis=1).values
+    # df3=df_new.dropna(thresh=3) #Remove rows where the number of non null values is less than 3
+    # df3.head()
+    # df3.notnull().sum(axis=1).values
+    # print(len(df_new),len(df3))
+
+def col_drop():
+    # st.write("Columns with large percentages of missing values")
+    missing_counts = df.isna().sum()
+    max_missing_count = missing_counts.max()
+    columns_with_max_missing = missing_counts[missing_counts == max_missing_count].index.tolist()
+    columns_text = ', '.join(columns_with_max_missing)
+    st.write("Columns with the maximum number of missing values:", columns_text)
+    # st.write(columns_with_max_missing, " has ", max_missing_count, "% missing data.")
+    col_selection = st.radio("Would you like to drop the columns?", ("Yes", "No"), index = 1)
+    if col_selection == "Yes":
+        df.drop(columns_with_max_missing, axis=1, inplace=True)
+    st.write(df.isna().sum()/len(df) * 100)
+    
+    select_column = st.multiselect("Select columns to drop:",df.columns)
+    df.drop(columns = select_column, inplace=True)
+
+# Function to perform strip operations
+def perform_strip_operations(df, selected_column, strip_operation, 
+                             selected_transformation_types, specific_string_to_transform):
+    for transformation_type in selected_transformation_types:
+        string_to_transform = None
+        
+        if transformation_type == "Strip Alphabets":
+            string_to_transform = '[a-zA-Z]'
+        elif transformation_type == "Strip Numericals":
+            string_to_transform = '[0-9]'
+        elif transformation_type == "Strip Special Characters":
+            string_to_transform = '[^\W\s_]'
+        elif transformation_type == "Strip Specific Character":
+            # specific_character = st.text_input("Enter a specific character(separated by and) to strip")
+            # if specific_character:
+            #     characters_list = specific_character.strip().split('and')
+            #     characters_list = [character.strip() for character in characters_list]
+            #     string_to_transform = ''.join(characters_list)
+            string_to_transform = specific_string_to_transform
+
+        if string_to_transform is not None:
+            if strip_operation == "left":
+                df[selected_column] = df[selected_column].str.lstrip(string_to_transform)
+            elif strip_operation == "right":
+                df[selected_column] = df[selected_column].str.rstrip(string_to_transform)
+            elif strip_operation == "full":
+                df[selected_column] = df[selected_column].str.strip(string_to_transform)
+
+    return df
+
+def col_strip(df):
+    # Create a session state to store the operations
+    if 'operations' not in st.session_state:
+        st.session_state.operations = {}
+
+    # Display the initial DataFrame
+    st.dataframe(df)
+
+    # Create a button to add more operations
+    if st.button("Add Operation"):
+        # Create a unique key for the caching mechanism
+        operation_key = str(len(st.session_state.operations)+1)
+
+        # Store the operation details in the session state
+        st.session_state.operations[operation_key] = {
+            'selected_column': "None",
+            'strip_operation': "None",
+            'selected_transformation_types': []
+        }
+    
+    # Display the expander sections for each operation
+    for operation_key, operation_details in st.session_state.operations.items():
+        with st.expander("Operation " + operation_key):
+        # with st.expander("Operation " + str(len(st.session_state.operations) + 1)):
+            left_col, middle_col, right_col = st.columns(3)
+
+            with left_col:
+                column_names = ["None"] + df.columns.tolist()
+                selected_column_key = operation_key + "_selected_column"
+                # Select a column from the DataFrame
+                selected_column = st.selectbox("Select a column for strip operation", 
+                                            #    options=[None] + column_names, 
+                                               options = column_names, 
+                                               index = column_names.index(operation_details['selected_column']), 
+                                               key=selected_column_key)
+
+            with middle_col:
+                strip_operation_key = operation_key + "_strip_operation"
+                # Select the strip operation
+                strip_operation = st.selectbox("Select a strip operation", 
+                                               ["None", "left", "right", "full"], 
+                                               index = ['None', 'left', 'right', 'full'].index(operation_details['strip_operation']), 
+                                               key=strip_operation_key)
+
+            with right_col:
+                # Create a multiselect field with transformation types
+                transformation_types = ["Strip Alphabets", "Strip Numericals", "Strip Special Characters", "Strip Specific Character"]
+                selected_transformation_types_key = operation_key + "_selected_transformation_types"
+                selected_transformation_types = st.multiselect("Select transformation types", 
+                                                               transformation_types, 
+                                                               default=operation_details['selected_transformation_types'], 
+                                                               key=selected_transformation_types_key)
+                specific_character_key = operation_key + "_specific_character"
+                specific_character = st.text_input("Enter a specific character(separated by and) to strip", key=specific_character_key)
+                if specific_character:
+                    characters_list = specific_character.strip().split('and')
+                    characters_list = [character.strip() for character in characters_list]
+                    specific_string_to_transform = ''.join(characters_list)
+            # Update the operation details in the session state
+            st.session_state.operations[operation_key]['selected_column'] = selected_column
+            st.session_state.operations[operation_key]['strip_operation'] = strip_operation
+            st.session_state.operations[operation_key]['selected_transformation_types'] = selected_transformation_types
+
+            # Perform strip operations on button click
+            if st.button("Apply Strip" + operation_key):
+                # Update the DataFrame with the strip operations
+                df = perform_strip_operations(df, selected_column, strip_operation, 
+                                              selected_transformation_types, specific_string_to_transform)
+                # Display the updated DataFrame
+                st.dataframe(df)
+    return df       
+    
+
+def col_strip1():
+    left_col, middle_col, right_col = st.columns(3)
+
+    with left_col:
+        column_names = df.columns.tolist()
+        # Select a column from the DataFrame
+        selected_column = st.selectbox("Select a column for strip operation", options= [None] + column_names, index = 0)
+
+    with middle_col:
+        # Select the strip operation
+        strip_operation = st.selectbox("Select a strip operation", [None, "left", "right", "full"], index = 0)
+
+    with right_col:
+        # Create a multiselect field with transformation types
+        transformation_types = ["Strip Alphabets", "Strip Numericals", "Strip Special Characters", "Strip Specific Character"]
+        selected_transformation_types = st.multiselect("Select transformation types", transformation_types)
+
+    # Perform strip operations based on the selected transformation types
+    for transformation_type in selected_transformation_types:
+        string_to_transform = None
+        
+        if transformation_type == "Strip Alphabets":
+            string_to_transform = '[a-zA-Z]'
+        elif transformation_type == "Strip Numericals":
+            string_to_transform = '[0-9]'
+        elif transformation_type == "Strip Special Characters":
+            string_to_transform = '[^\W\s_]'
+        elif transformation_type == "Strip Specific Character":
+            specific_character = st.text_input("Enter a specific character(separated by and) to strip")
+            # string_to_transform = specific_character
+            if specific_character:
+                characters_list = specific_character.strip().split('and')
+                characters_list = [character.strip() for character in characters_list]
+                string_to_transform = ''.join(characters_list)
+
+        if string_to_transform is not None:
+            # Perform the strip operation on the selected column
+            # if st.button("Apply Strip"):
+            if strip_operation == "left":
+                df[selected_column] = df[selected_column].str.lstrip(string_to_transform)
+            elif strip_operation == "right":
+                df[selected_column] = df[selected_column].str.rstrip(string_to_transform)
+            elif strip_operation == "full":
+                df[selected_column] = df[selected_column].str.strip(string_to_transform)  
+
+    # Display the updated DataFrame
+    st.dataframe(df)
+    
 
 # ---- Create Model ---
 with st.container():
@@ -149,101 +380,74 @@ with st.container():
     st.header("Let's build the smart model!")
     st.write("##")
     #adding a file uploader
-    file = st.file_uploader("Please choose a file")
+    column_selection = st.radio("Select dataset", ("File", "URL"))
+
+    # Display different content based on the selected column
+    if column_selection == "File":
+        # download_folder = os.path.expanduser("~/Downloads/Customer Call List.csv")
+        file = st.file_uploader("Please choose a data file", type=["xlsx", "csv"], 
+                                accept_multiple_files=False)
+    else:
+        file = st.text_input("URL of data file")
+    
     if file is not None:
         data_load_state = st.text('Loading data...')
-        #To read file as bytes:
-        bytes_data = file.getvalue()
-        # st.write(bytes_data)
-        #To convert to a string based IO:
-        stringio = StringIO(file.getvalue().decode("utf-8"))
-        # st.write(stringio)
-        #To read file as string:
-        string_data = stringio.read()
-        # st.write(string_data)
-        #Can be used wherever a "file-like" object is accepted:
-        df= pd.read_csv(file)
-        data_load_state.text('Loading data...done!')
-        # st.write("Tabular Data represenatation:")
+        # Get the file name and extension
+        read_file(file)
+        if df is not None:
+            data_load_state.text('Loading data...done!')
+        else:
+            st.error("Error while reading the file. Please check the file format and try again.")
+        
         if st.checkbox("Tabular Data"):
-            st.table(df.head(100))
+            st.table(df.head(10))
         if st.checkbox("Statistical Summary"):
             st.table(df.describe())
         if st.checkbox("Correlation graph"):
             fig,ax = plt.subplots(figsize=(5,2.5))
             sns.heatmap(df.corr(),annot=True,cmap="coolwarm")
             st.pyplot(fig)
-        graph = st.selectbox("Different types of graph",["Scatter plot", "Bar graph", "Histogram"])
-        if graph == "Scatter plot":
-            value = st.slider("Filter data using Sepal Length",4,8)
-            data = df.loc[df["SepalLengthCm"]>= value]
-            fig,ax=plt.subplots(figsize=(10,5))
-            sns.scatterplot(data = data, x= "SepalLengthCm", y="Species", hue="PetalLengthCm")
-            st.pyplot(fig)
-        if graph == "Bar graph":
-            fig,ax=plt.subplots(figsize=(3.5,2))
-            sns.barplot(data = df, x= "SepalLengthCm", y=df.PetalLengthCm.index)
-            st.pyplot(fig)
-        if graph == "Histogram":
-            fig,ax=plt.subplots(figsize=(5,3))
-            sns.distplot(df.SepalLengthCm,kde=True)
-            st.pyplot(fig)
+        # graph = st.selectbox("Different types of graph",["Scatter plot", "Bar graph", "Histogram"])
+        # if graph == "Scatter plot":
+        #     value = st.slider("Filter data using Sepal Length",4,8)
+        #     data = df.loc[df["SepalLengthCm"]>= value]
+        #     fig,ax=plt.subplots(figsize=(10,5))
+        #     sns.scatterplot(data = data, x= "SepalLengthCm", y="Species", hue="PetalLengthCm")
+        #     st.pyplot(fig)
+        # if graph == "Bar graph":
+        #     fig,ax=plt.subplots(figsize=(3.5,2))
+        #     sns.barplot(data = df, x= "SepalLengthCm", y=df.PetalLengthCm.index)
+        #     st.pyplot(fig)
+        # if graph == "Histogram":
+        #     fig,ax=plt.subplots(figsize=(5,3))
+        #     sns.distplot(df.SepalLengthCm,kde=True)
+        #     st.pyplot(fig)
 
         if st.checkbox("Handle missing values"):
             st.subheader("Checking missing values")
-
-            rows = st.columns(3)
-            rows[0].markdown("### Is there?")
-            rows[0].dataframe(df.isna().any())
-            rows[1].markdown("### Count")
-            rows[1].dataframe(df.isna().sum())
-            rows[2].markdown("### Percentages")
-            rows[2].dataframe(df.isna().sum()/len(df))
-
-            # st.write("Is there any column with at least one missing value: ", df.isna().any())
-            # st.write("Missing values count in each column: ", df.isna().sum())
-            # st.write("Percentages of missing values in each column: ", df.isna().sum()/len(df))
-            st.write("Missing values count in each row: ", df.isna().sum(axis=1).values)
-            st.write("Is there any row with at least one missing value: ", df.isnull().any(axis = 1).sum())
-            st.write("how many rows are there with only missing values: ",df.isnull().all(axis = 1).sum())
-            
-            labels = "SepalLengthCm", "SepalWidthCm", "PetalLengthCm", "PetalWidthCm", "Species"
-            sizes = [2, 3, 0, 0, 1]
-            fig1, ax1 = plt.subplots()
-            ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
-            shadow=False, startangle=90)
-            ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-            st.pyplot(fig1)
-
+            col_missing_info()  
+            row_missing_info()        
+            # plot missing information
+            # labels = "SepalLengthCm", "SepalWidthCm", "PetalLengthCm", "PetalWidthCm", "Species"
+            # sizes = [2, 3, 0, 0, 1]
+            # fig1, ax1 = plt.subplots()
+            # ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
+            # shadow=False, startangle=90)
+            # ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+            # st.pyplot(fig1)
             user_choice = st.selectbox(
                 'How do you like to deal with missing record?',
                 ('Pleae select','Drop','Fill'))
-            # st.write('You selected:', user_choice)
-            df_new = df.copy()
+            df_new = df.copy() # unwanted -------------
             if user_choice == "Drop":
-                st.write("Dropping columns with large percentages of missing values")
-                st.write(df.isna().sum().idxmax())
-                df_new=df_new.drop(df.isna().sum().idxmax(),axis=1)
-                df_new.head() # use df_new ahead
+                row_drop()
+                col_drop()
+                df = col_strip(df)
+                
 
-                # st.write("Dropping rows with at least one missing value")
-                # df1=df_new.dropna(how="any")
-                # df1.head()
 
-                # df1.isna().any() #No missing values
-
-                st.write("Dropping rows if all values in that row are missing values (Rows with only missing values)")
-                df2=df_new.dropna(how="all")
-                df2.head()
-                # print(len(df_new),len(df2)) #The row with only missing values has been removed
-
-                # st.write("Dropping rows where the non null values are less than a threshold value")
-                # df_new.isnull().sum(axis=1).values
-                # df_new.notnull().sum(axis=1).values
-                # df3=df_new.dropna(thresh=3) #Remove rows where the number of non null values is less than 3
-                # df3.head()
-                # df3.notnull().sum(axis=1).values
-                # print(len(df_new),len(df3))
+                
+                
 
                 # -----------Fill
                 user_choice1 = st.selectbox(
@@ -286,7 +490,7 @@ with st.container():
             elif user_choice == "Fill":
                 st.write(df_new.isnull().sum()) 
             
-            st.subheader("Checking Duplicated rows")
+            # st.subheader("Checking Duplicated rows")
             df.duplicated() #This returns True for duplicated rows
             df.duplicated().sum() #This returns the number of duplicated rows
             len(df)
