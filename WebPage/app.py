@@ -1,6 +1,5 @@
 import requests
 import streamlit as st
-# from streamlit_lottie import st_lottie
 from PIL import Image
 from io import StringIO
 import pandas as pd
@@ -73,79 +72,6 @@ with st.container():
 # select_column = st.multiselect("Select columns to drop:",df.columns)
 # ---------------------------------------------
 
-# # ---- WHAT I DO ----
-# with st.container():
-#     st.write("---")
-#     left_column, right_column = st.columns(2)
-#     with left_column:
-#         st.header("What I do")
-#         st.write("##")
-#         st.write(
-#             """
-#             On my YouTube channel I am creating tutorials for people who:
-#             - are looking for a way to leverage the power of Python in their day-to-day work.
-#             - are struggling with repetitive tasks in Excel and are looking for a way to use Python and VBA.
-#             - want to learn Data Analysis & Data Science to perform meaningful and impactful analyses.
-#             - are working with Excel and found themselves thinking - "there has to be a better way."
-
-#             If this sounds interesting to you, consider subscribing and turning on the notifications, so you don’t miss any content.
-#             """
-#         )
-#         st.write("[YouTube Channel >](https://youtube.com/)")
-#     # with right_column:
-#     #     st_lottie(lottie_coding, height=300, key="coding")
-
-# # ---- PROJECTS ----
-# with st.container():
-#     st.write("---")
-#     st.header("My Projects")
-#     st.write("##")
-#     image_column, text_column = st.columns((1, 2))
-#     with image_column:
-#         st.image(img_lottie_animation)
-#     with text_column:
-#         st.subheader("Integrate Animations Inside Your Streamlit App")
-#         st.write(
-#             """
-#             Learn how to use ...
-#             """
-#         )
-#         st.markdown("[Watch Video...](https://youtu.be/)")
-# with st.container():
-#     image_column, text_column = st.columns((1, 2))
-#     with image_column:
-#         st.image(img_contact_form)
-#     with text_column:
-#         st.subheader("How To Add A Contact Form To Your Streamlit App")
-#         st.write(
-#             """
-#             Want to add a contact form to your Streamlit website?
-#             In this video, I'm going to show you how to implement a contact form in your Streamlit app using the free service ‘Form Submit’.
-#             """
-#         )
-#         st.markdown("[Watch Video...](https://youtu.be/FOULV9Xij_8)")
-
-# # ---- CONTACT ----
-# with st.container():
-#     st.write("---")
-#     st.header("Get In Touch With Me!")
-#     st.write("##")
-
-#     # Documention: https://formsubmit.co/ !!! CHANGE EMAIL ADDRESS !!!
-#     contact_form = """
-#     <form action="https://formsubmit.co/YOUR@MAIL.COM" method="POST">
-#         <input type="hidden" name="_captcha" value="false">
-#         <input type="text" name="name" placeholder="Your name" required>
-#         <input type="email" name="email" placeholder="Your email" required>
-#         <textarea name="message" placeholder="Your message here" required></textarea>
-#         <button type="submit">Send</button>
-#     </form>
-#     """
-#     left_column, right_column = st.columns(2)
-#     with left_column:
-#         st.markdown(contact_form, unsafe_allow_html=True)
-#     with right_column:
-#         st.empty()
 def read_file(file_path):
     global df
     try:
@@ -206,6 +132,11 @@ def row_drop():
     # df3.notnull().sum(axis=1).values
     # print(len(df_new),len(df3))
 
+    # # drop rows by index, if a column values is "Y" or drop if cell values is empty
+    # for x in df.index:
+    #     if df.loc[x,"colName"] == "Y":
+    #         df.drop(x, inpalce=True)
+
 def col_drop():
     # st.write("Columns with large percentages of missing values")
     missing_counts = df.isna().sum()
@@ -224,7 +155,12 @@ def col_drop():
 
 # Function to perform strip operations
 def perform_strip_operations(df, selected_column, strip_operation, 
-                             selected_transformation_types, specific_string_to_transform):
+                             selected_transformation_types, specific_character):
+    if specific_character:
+        characters_list = specific_character.strip().split('and')
+        characters_list = [character.strip() for character in characters_list]
+        specific_string_to_transform = ''.join(characters_list)
+
     for transformation_type in selected_transformation_types:
         string_to_transform = None
         
@@ -252,14 +188,76 @@ def perform_strip_operations(df, selected_column, strip_operation,
 
     return df
 
-def col_strip():
+def col_strip_operation(st, operation_key, operation_details):
+    global df
+    left_col, middle_col, right_col = st.columns(3)
+    with left_col:
+        column_names = ["None"] + df.columns.tolist()
+        selected_column_key = operation_key + "_selected_column"
+        # Select a column from the DataFrame
+        selected_column = st.selectbox("Select a column for strip operation", 
+                                    #    options=[None] + column_names, 
+                                        options = column_names, 
+                                        index = column_names.index(operation_details['selected_column']), 
+                                        key=selected_column_key)
+
+    with middle_col:
+        strip_operation_key = operation_key + "_strip_operation"
+        # Select the strip operation
+        strip_operation = st.selectbox("Select a strip operation", 
+                                        ["None", "left", "right", "full"], 
+                                        index = ['None', 'left', 'right', 'full'].index(operation_details['strip_operation']), 
+                                        key=strip_operation_key)
+
+    with right_col:
+        # Create a multiselect field with transformation types
+        transformation_types = ["Strip Alphabets", "Strip Numericals", "Strip Special Characters", "Strip Specific Character"]
+        selected_transformation_types_key = operation_key + "_selected_transformation_types"
+        selected_transformation_types = st.multiselect("Select transformation types", 
+                                                        transformation_types, 
+                                                        default=operation_details['selected_transformation_types'], 
+                                                        key=selected_transformation_types_key)
+        specific_character_key = operation_key + "_specific_character"
+        specific_character = st.text_input("Enter a specific character(separated by and) to strip", key=specific_character_key)
+        
+    # Update the operation details in the session state
+    st.session_state.operations[operation_key]['selected_column'] = selected_column
+    st.session_state.operations[operation_key]['strip_operation'] = strip_operation
+    st.session_state.operations[operation_key]['selected_transformation_types'] = selected_transformation_types
+    st.session_state.operations[operation_key]['specific_character'] = specific_character
+
+    # Perform strip operations on button click
+    if st.button("Apply Strip" + operation_key):
+        # Get the operation details
+        selected_column = operation_details['selected_column']
+        strip_operation = operation_details['strip_operation']
+        selected_transformation_types = operation_details['selected_transformation_types']
+        specific_character = operation_details['specific_character']
+
+        
+        # Process the strip operations
+        df = perform_strip_operations(df, selected_column, strip_operation,
+                                    selected_transformation_types, specific_character)
+        # Display the updated DataFrame
+        st.dataframe(df)
+      
+
+
+def replace_operation():
+    # df['Phone_Number'] = df['Phone_Number'].str.replace('[â-ZA-Z0-9]','') # except alphabets and numeric, everything else
+    # Yes with Y and No with N
+    pass
+
+def split_operation():
+    # Split operation logic goes here
+    # split by comma and create new columns (address)
+    pass
+
+def perform_operations():
     global df
     # Create a session state to store the operations
     if 'operations' not in st.session_state:
         st.session_state.operations = {}
-
-    # Display the initial DataFrame
-    st.dataframe(df)
 
     # Create a button to add more operations
     if st.button("Add Operation"):
@@ -270,64 +268,61 @@ def col_strip():
         st.session_state.operations[operation_key] = {
             'selected_column': "None",
             'strip_operation': "None",
-            'selected_transformation_types': []
+            'selected_transformation_types': [],
+            'specific_character': ""
         }
     
     # Display the expander sections for each operation
     for operation_key, operation_details in st.session_state.operations.items():
         with st.expander("Operation " + operation_key):
-            left_col, middle_col, right_col = st.columns(3)
+            # Based on radio button selection, call the respective method
+            selected_operation = st.radio(
+                "Select an operation",
+                options=["None", "Strip", "Replace", "Split"],
+                index=0
+            )
 
-            with left_col:
-                column_names = ["None"] + df.columns.tolist()
-                selected_column_key = operation_key + "_selected_column"
-                # Select a column from the DataFrame
-                selected_column = st.selectbox("Select a column for strip operation", 
-                                            #    options=[None] + column_names, 
-                                               options = column_names, 
-                                               index = column_names.index(operation_details['selected_column']), 
-                                               key=selected_column_key)
+            if selected_operation == "Strip":
+                col_strip_operation(st, operation_key, operation_details)
+            elif selected_operation == "Replace":
+                replace_operation()
+            elif selected_operation == "Split":
+                split_operation()
 
-            with middle_col:
-                strip_operation_key = operation_key + "_strip_operation"
-                # Select the strip operation
-                strip_operation = st.selectbox("Select a strip operation", 
-                                               ["None", "left", "right", "full"], 
-                                               index = ['None', 'left', 'right', 'full'].index(operation_details['strip_operation']), 
-                                               key=strip_operation_key)
-
-            with right_col:
-                # Create a multiselect field with transformation types
-                transformation_types = ["Strip Alphabets", "Strip Numericals", "Strip Special Characters", "Strip Specific Character"]
-                selected_transformation_types_key = operation_key + "_selected_transformation_types"
-                selected_transformation_types = st.multiselect("Select transformation types", 
-                                                               transformation_types, 
-                                                               default=operation_details['selected_transformation_types'], 
-                                                               key=selected_transformation_types_key)
-                specific_character_key = operation_key + "_specific_character"
-                specific_character = st.text_input("Enter a specific character(separated by and) to strip", key=specific_character_key)
-                if specific_character:
-                    characters_list = specific_character.strip().split('and')
-                    characters_list = [character.strip() for character in characters_list]
-                    specific_string_to_transform = ''.join(characters_list)
-            # Update the operation details in the session state
-            st.session_state.operations[operation_key]['selected_column'] = selected_column
-            st.session_state.operations[operation_key]['strip_operation'] = strip_operation
-            st.session_state.operations[operation_key]['selected_transformation_types'] = selected_transformation_types
-
-            # Perform strip operations on button click
-            if st.button("Apply Strip" + operation_key):
-                # Update the DataFrame with the strip operations
-                df = perform_strip_operations(df, selected_column, strip_operation, 
-                                              selected_transformation_types, specific_string_to_transform)
-                # Display the updated DataFrame
-                st.write(df)
-                # st.dataframe(df)
-    return df       
+def fillNA():
+    st.write(df.isnull().sum())
+    user_choice = st.selectbox(
+    'How do you like to deal with missing values?',
+    ('Pleae select',
+    'Filling missing values with a particular value',
+    'Missing values of a particular column can be treated separately',
+    'Forward filling',
+    'Backward filling',
+    'Interpolate Numerical missing values'))
     
-def replace():
-    # df['Phone_Number'] = df['Phone_Number'].str.replace('[â-ZA-Z0-9]','') # except alphabets and numeric, everything else
-    df['Phone_Number'].apply(lambda x:x)
+    if user_choice == "Filling missing values with a particular value":
+        df4=df.fillna(0)
+        st.dataframe(df4.head())
+    elif user_choice == "Missing values of a particular column can be treated separately":
+        df5=df.copy()
+        df5.head()
+        df5["Species"].fillna("Unknown",inplace=True) #Filling missing values in Species column with Unknown
+        df5.head()
+        df5["Sepal.Length"].fillna(df5["Sepal.Length"].mean(),inplace=True) #Filling missing values in Sepal Length column with average
+        df5.head()
+    elif user_choice == "Forward filling":
+        df6=df.fillna(method="ffill")
+        df6.head()
+        df6=df_new.fillna(method="pad")
+        df6.head()
+    elif user_choice == "Backward filling":
+        df7=df.fillna(method="bfill")
+        df7.head()
+    elif user_choice == "Interpolate Numerical missing values":
+        df8=df[['Sepal.Length', 'Sepal.Width', 'Petal.Length']]
+        df8.head()
+        df9=df8.interpolate(method ='linear', limit_direction ='forward')
+        df9.head()
 
 # ---- Create Model ---
 with st.container():
@@ -356,40 +351,39 @@ with st.container():
         
         if st.checkbox("Tabular Data"):
             st.table(df.head(10))
+
         if st.checkbox("Statistical Summary"):
             st.table(df.describe())
+
         if st.checkbox("Correlation graph"):
             fig,ax = plt.subplots(figsize=(5,2.5))
             sns.heatmap(df.corr(),annot=True,cmap="coolwarm")
             st.pyplot(fig)
-        # graph = st.selectbox("Different types of graph",["Scatter plot", "Bar graph", "Histogram"])
-        # if graph == "Scatter plot":
-        #     value = st.slider("Filter data using Sepal Length",4,8)
-        #     data = df.loc[df["SepalLengthCm"]>= value]
-        #     fig,ax=plt.subplots(figsize=(10,5))
-        #     sns.scatterplot(data = data, x= "SepalLengthCm", y="Species", hue="PetalLengthCm")
-        #     st.pyplot(fig)
-        # if graph == "Bar graph":
-        #     fig,ax=plt.subplots(figsize=(3.5,2))
-        #     sns.barplot(data = df, x= "SepalLengthCm", y=df.PetalLengthCm.index)
-        #     st.pyplot(fig)
-        # if graph == "Histogram":
-        #     fig,ax=plt.subplots(figsize=(5,3))
-        #     sns.distplot(df.SepalLengthCm,kde=True)
-        #     st.pyplot(fig)
+
+        if st.checkbox("Other graphs"):
+            graph = st.selectbox("Different types of graph",["Scatter plot", "Bar graph", "Histogram"])
+            if graph == "Scatter plot":
+                pass
+                # value = st.slider("Filter data using Sepal Length",4,8)
+                # data = df.loc[df["SepalLengthCm"]>= value]
+                # fig,ax=plt.subplots(figsize=(10,5))
+                # sns.scatterplot(data = data, x= "SepalLengthCm", y="Species", hue="PetalLengthCm")
+                # st.pyplot(fig)
+            if graph == "Bar graph":
+                pass
+                # fig,ax=plt.subplots(figsize=(3.5,2))
+                # sns.barplot(data = df, x= "SepalLengthCm", y=df.PetalLengthCm.index)
+                # st.pyplot(fig)
+            if graph == "Histogram":
+                pass
+                # fig,ax=plt.subplots(figsize=(5,3))
+                # sns.distplot(df.SepalLengthCm,kde=True)
+                # st.pyplot(fig)
 
         if st.checkbox("Handle missing values"):
             st.subheader("Checking missing values")
             col_missing_info()  
             row_missing_info()        
-            # plot missing information
-            # labels = "SepalLengthCm", "SepalWidthCm", "PetalLengthCm", "PetalWidthCm", "Species"
-            # sizes = [2, 3, 0, 0, 1]
-            # fig1, ax1 = plt.subplots()
-            # ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
-            # shadow=False, startangle=90)
-            # ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-            # st.pyplot(fig1)
             user_choice = st.selectbox(
                 'How do you like to deal with missing record?',
                 ('Pleae select','Drop','Fill'))
@@ -397,63 +391,21 @@ with st.container():
             if user_choice == "Drop":
                 row_drop()
                 col_drop()
-                df = col_strip()
-                
+                # df = col_strip_operation()  # Call col_strip_operation initially
+                perform_operations()  # Call perform_operations to handle radio button selection and add operation functionality
 
+                selected_operation = st.radio(
+                    "Would you like to fill the missing values?",
+                    options=["Yes", "No"],
+                    index=1
+                )
+                if selected_operation == "Yes":
+                    fillNA()
 
-                
-                
-
-                # -----------Fill
-                user_choice1 = st.selectbox(
-                'How do you like to deal further?',
-                ('Pleae select','Fill'))
-                if user_choice1 == "Fill":
-                    st.write(df_new.isnull().sum())
-                    user_choice2 = st.selectbox(
-                    'How do you like to deal further?',
-                    ('Pleae select',
-                    'Filling missing values with a particular value',
-                    'Missing values of a particular column can be treated separately',
-                    'Forward filling',
-                    'Backward filling',
-                    'Interpolate Numerical missing values'))
-                    
-                    if user_choice2 == "Filling missing values with a particular value":
-                        df4=df_new.fillna(0)
-                        df4.head()
-                    elif user_choice2 == "Missing values of a particular column can be treated separately":
-                        df5=df_new.copy()
-                        df5.head()
-                        df5["Species"].fillna("Unknown",inplace=True) #Filling missing values in Species column with Unknown
-                        df5.head()
-                        df5["Sepal.Length"].fillna(df5["Sepal.Length"].mean(),inplace=True) #Filling missing values in Sepal Length column with average
-                        df5.head()
-                    elif user_choice2 == "Forward filling":
-                        df6=df_new.fillna(method="ffill")
-                        df6.head()
-                        df6=df_new.fillna(method="pad")
-                        df6.head()
-                    elif user_choice2 == "Backward filling":
-                        df7=df_new.fillna(method="bfill")
-                        df7.head()
-                    elif user_choice2 == "Interpolate Numerical missing values":
-                        df8=df_new[['Sepal.Length', 'Sepal.Width', 'Petal.Length']]
-                        df8.head()
-                        df9=df8.interpolate(method ='linear', limit_direction ='forward')
-                        df9.head()
             elif user_choice == "Fill":
-                st.write(df_new.isnull().sum()) 
-            
-            # st.subheader("Checking Duplicated rows")
-            df.duplicated() #This returns True for duplicated rows
-            df.duplicated().sum() #This returns the number of duplicated rows
-            len(df)
-            # Dropping duplicated rows
-            df.drop_duplicates(inplace=True)
-            df.head()
-            df.duplicated().sum()
-            len(df)
+                fillNA()
+
+            df = df.reset_index(drop=True)
 
             # st.subheader("Dealing with outliers")
             # # Detecting outliers using a boxplot
